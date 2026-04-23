@@ -6,27 +6,37 @@ import streamlit as st
 import pickle
 import os
 
-# 1. Construir la ruta absoluta de forma segura
-# Esto ubica la carpeta actual (src) y luego sube a models
+# 1. Configuración de la página
+st.set_page_config(page_title="Predictor NBA", layout="centered")
+
+# 2. Construir la ruta absoluta de forma segura
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-MODEL_PATH = os.path.join(BASE_DIR, '../models/nba_model.sav')
 
-# Cargar el modelo usando la ruta segura
-modelo = pickle.load(open(MODEL_PATH, 'rb'))
+# Intentamos detectar el nombre correcto del archivo (con o sin 's')
+MODEL_PATH = os.path.join(BASE_DIR, '../models/nba_models.sav')
+if not os.path.exists(MODEL_PATH):
+    MODEL_PATH = os.path.join(BASE_DIR, '../models/nba_model.sav')
 
-# 2. Diccionario para traducir la predicción a texto legible
+# 3. Cargar el modelo con manejo de errores
+try:
+    with open(MODEL_PATH, 'rb') as f:
+        modelo = pickle.load(f)
+except Exception as e:
+    st.error(f"Error crítico al cargar el modelo: {e}")
+    st.stop() # Detiene la ejecución si no hay modelo
+
+# 4. Diccionario de posiciones
 nombres_posiciones = {
     'G': 'Guard (Base / Escolta)',
     'F': 'Forward (Alero / Ala-Pívot)',
     'C': 'Center (Pívot)'
 }
 
-# 3. Título y descripción de la app web
+# 5. Interfaz de usuario
 st.title("Predictor de Posiciones NBA 🏀")
-st.write("¿Qué posición jugarías según tus estadísticas?")
+st.write("Ingresa las estadísticas para predecir la posición del jugador.")
 
-# 4. Crear los campos de entrada de datos numéricos
-# Usamos number_input para permitir decimales (min_value evita valores negativos)
+# Campos de entrada
 mpg = st.number_input("Minutos Jugados (MPG)", min_value=0.0, step=0.1)
 tpa = st.number_input("Triples Intentados (3PA)", min_value=0.0, step=0.1)
 tpp = st.number_input("Porcentaje Triples (3P%)", min_value=0.0, step=0.1)
@@ -36,15 +46,10 @@ apg = st.number_input("Asistencias por juego (APG)", min_value=0.0, step=0.1)
 spg = st.number_input("Robos por juego (SPG)", min_value=0.0, step=0.1)
 bpg = st.number_input("Tapones por juego (BPG)", min_value=0.0, step=0.1)
 
-# 5. Crear el botón que acciona la predicción
+# 6. Botón de predicción
 if st.button("Adivinar Posición"):
-    
-    # 6. Agrupar los datos ingresados en el MISMO ORDEN del entrenamiento
     datos_ingresados = [[mpg, tpa, tpp, ppg, rpg, apg, spg, bpg]]
-    
-    # 7. Ejecutar la predicción con el modelo
     resultado_crudo = modelo.predict(datos_ingresados)[0]
-    prediccion = nombres_posiciones[resultado_crudo]
+    prediccion = nombres_posiciones.get(resultado_crudo, "Posición desconocida")
     
-    # 8. Mostrar el resultado final con un cuadro de éxito (verde)
     st.success(f"¡El modelo dice que eres: {prediccion}!")
